@@ -1,0 +1,91 @@
+import serial
+import requests
+
+class MatchManager:
+    def __init__(self, arduino_port, arduino_code):
+        self.ser = serial.Serial(arduino_port, 9600)
+        self.arduino_code = arduino_code
+        self.latest_unended_match = None
+        
+        self.base_url = 'http://skymunt.fr:3000/api/goalMaster'
+        
+        self.id_match = ""
+        self.score_joueur1 = 0
+        self.score_joueur2 = 0
+
+    def search_match(self):
+        while not self.id_match:
+            print("Recherche du match en cours...")
+            try:
+                response = requests.get(f'{self.base_url}/arduinos/{self.arduino_code}')
+                if response.status_code == 200:
+                    match_data = response.json()
+                    unended_matches = [match for match in match_data['res']['matchsHistory'] if not match['hasEnded']]
+                    unended_matches.sort(key=lambda x: x['createdAt'], reverse=True)
+                    
+                    if unended_matches:
+                        self.latest_unended_match = unended_matches[0]
+                        self.id_match = self.latest_unended_match['id']
+                        self.score_joueur1 = self.latest_unended_match['blueScore']
+                        self.score_joueur2 = self.latest_unended_match['redScore']
+                        print(self.latest_unended_match)
+                        print("Match trouvé !")
+                        self.play_match()
+                else:
+                    print(f"La requête a échoué avec le code d'état : {response.status_code}")
+                
+            except requests.exceptions.RequestException as e:
+                print(f"Une erreur s'est produite lors de la requête : {e}")
+
+    def update_match(self, score_joueur1, score_joueur2):
+        if score_joueur1 == 10 or score_joueur2 == 10:
+            updated_data = {
+                "blueScore": score_joueur1,
+                "redScore": score_joueur2,
+                "hasEnded": True,
+            }
+        else:
+            updated_data = {
+                "blueScore": score_joueur1,
+                "redScore": score_joueur2,
+            }
+
+        if self.id_match:
+            url = f'{self.base_url}/matchs/{self.id_match}'
+            try:
+                response = requests.put(url, json=updated_data)
+                if response.status_code == 202:
+                    updated_match_data = response.json()
+                    print("Données mises à jour du match")
+                else:
+                    print(f"La requête de mise à jour a échoué avec le code d'état : {response.status_code} + ({response.text})")
+            except requests.exceptions.RequestException as e:
+                print(f"Une erreur s'est produite lors de la requête : {e}")
+
+    def play_match(self):
+        while self.score_joueur1 < 10 and self.score_joueur2 < 10:
+            line = self.ser.readline()
+            line = line.decode('utf-8')
+
+            if "joueur1" in line:
+                print("BUT joueur1")
+                self.score_joueur1 += 1
+            elif "joueur2" in line:
+                print("BUT joueur2")
+                self.score_joueur2 += 1
+            print(f"{self.score_joueur1} : {self.score_joueur2}")
+            self.update_match(self.score_joueur1, self.score_joueur2)
+
+        if self.score_joueur1 == 10:
+            print("Joueur 1 a gagné")
+        elif self.score_joueur2 == 10:
+            print("Joueur 2 a gagné")
+            
+        self.id_match = ""
+        self.search_match()
+
+if __name__ == "__main__":
+    arduino_port = 'COM3'
+    arduino_code = 'Jz8iY84b'
+    match_manager = MatchManager(arduino_port, arduino_code)
+    match_manager.search_match()
