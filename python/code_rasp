@@ -12,10 +12,17 @@ class MatchManager:
         self.id_match = ""
         self.score_joueur1 = 0
         self.score_joueur2 = 0
+        
+        self.data_to_send = "NOMATCH"
 
     def search_match(self):
         while not self.id_match:
             print("Recherche du match en cours...")
+            self.data_to_send = "NOMATCH"
+            self.ser.write(self.data_to_send.encode())
+            line = self.ser.readline()
+            line = line.decode('utf-8')
+            print(line)
             try:
                 response = requests.get(f'{self.base_url}/arduinos/{self.arduino_code}')
                 if response.status_code == 200:
@@ -30,7 +37,11 @@ class MatchManager:
                         self.score_joueur2 = self.latest_unended_match['redScore']
                         print(self.latest_unended_match)
                         print("Match trouvé !")
+                        self.data_to_send = "MATCH"
+                        # Envoyer les données à l'Arduino
+                        self.ser.write(self.data_to_send.encode())
                         self.play_match()
+                    
                 else:
                     print(f"La requête a échoué avec le code d'état : {response.status_code}")
                 
@@ -38,17 +49,10 @@ class MatchManager:
                 print(f"Une erreur s'est produite lors de la requête : {e}")
 
     def update_match(self, score_joueur1, score_joueur2):
-        if score_joueur1 == 10 or score_joueur2 == 10:
-            updated_data = {
-                "blueScore": score_joueur1,
-                "redScore": score_joueur2,
-                "hasEnded": True,
-            }
-        else:
-            updated_data = {
-                "blueScore": score_joueur1,
-                "redScore": score_joueur2,
-            }
+        updated_data = {
+            "blueScore": score_joueur1,
+            "redScore": score_joueur2,
+        }
 
         if self.id_match:
             url = f'{self.base_url}/matchs/{self.id_match}'
@@ -66,6 +70,7 @@ class MatchManager:
         while self.score_joueur1 < 10 and self.score_joueur2 < 10:
             line = self.ser.readline()
             line = line.decode('utf-8')
+            
 
             if "joueur1" in line:
                 print("BUT joueur1")
