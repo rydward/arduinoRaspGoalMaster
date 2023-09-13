@@ -70,16 +70,16 @@ class MatchManager:
         while self.score_joueur1 < 10 and self.score_joueur2 < 10:
             line = self.ser.readline()
             line = line.decode('utf-8')
-            
-
             if "joueur1" in line:
                 print("BUT joueur1")
                 self.score_joueur1 += 1
+                self.update_match(self.score_joueur1, self.score_joueur2)
+                print(f"{self.score_joueur1} : {self.score_joueur2}")
             elif "joueur2" in line:
                 print("BUT joueur2")
                 self.score_joueur2 += 1
-            print(f"{self.score_joueur1} : {self.score_joueur2}")
-            self.update_match(self.score_joueur1, self.score_joueur2)
+                self.update_match(self.score_joueur1, self.score_joueur2)
+                print(f"{self.score_joueur1} : {self.score_joueur2}")
 
         if self.score_joueur1 == 10:
             print("Joueur 1 a gagné")

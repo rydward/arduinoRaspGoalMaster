@@ -11,8 +11,6 @@ void loop() {
   int etatJoueur1 = digitalRead(joueur1); // Lire l'état du bouton poussoir
   int etatJoueur2 = digitalRead(joueur2); // Lire l'état du bouton poussoir
 
-  Serial.print("initialisation ok ");
-
     // Lire les données depuis le port série
     String receivedData = Serial.readString();
 
